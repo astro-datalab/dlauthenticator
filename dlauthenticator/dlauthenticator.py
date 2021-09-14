@@ -21,6 +21,8 @@ else:
 
 DEF_SERVICE_URL = DEF_SERVICE_ROOT + "/auth"
 
+DEBUG_USER_PATH = '/tmp/dlauth_debug_user'
+
 
 class DataLabAuthenticator(Authenticator):
     '''Data Lab Jupyter login authenticator.
@@ -36,10 +38,22 @@ class DataLabAuthenticator(Authenticator):
         """
     )
 
+    # Get the debug username, if any. Make it a runtime file to avoid
+    # restarts of the JupyterHub.
+    debug_user = []
+    if os.path.exists(DEBUG_USER_PATH):
+        with open(DEBUG_USER_PATH,'r') as fd:
+            debug_user = [ fd.readline().strip() ]
+
     @gen.coroutine
     def authenticate(self, handler, data):
         username = data["username"]
         password = data["password"]
+
+        # Allow password-less login for specific users. Typically used
+	# for upport purposes only to debug a user's environment.
+        if username in self.debug_user:
+            return username
 
         # Punt on any attempted login to excluded account names.
         for user in self.excluded_users:
@@ -51,10 +65,10 @@ class DataLabAuthenticator(Authenticator):
             authClient.set_svc_url(DEF_SERVICE_URL)
             token = authClient.login (username, password)
             if not authClient.isValidToken(token):
-                self.log.warning("Auth error: %s: %s", (username,token))
+                self.log.warning("Invalid token: %s: %s" % (username,token))
                 return None
         except Exception as e:
-            self.log.error("Auth error: %s: %s", (username,token))
+            self.log.error("Exception Auth error: %s: %s" % (username,str(e)))
             return None
 
         return data['username']
@@ -71,5 +85,5 @@ if __name__ == "__main__":
 
     rs = DataLabAuthenticator().authenticate(None, data)
 
-    print('DLAuth result: ' + rs.result())
+    print('DLAuth result: ' + str(rs.result()))
 
