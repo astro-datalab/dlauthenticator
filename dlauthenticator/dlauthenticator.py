@@ -21,7 +21,9 @@ else:
 
 DEF_SERVICE_URL = DEF_SERVICE_ROOT + "/auth"
 
-DEBUG_USER_PATH = '/tmp/dlauth_debug_user'
+# Make the runtime path to the debug user file accessible only to somebody
+# with admin privs on the machine running the authenticator.
+DEBUG_USER_PATH = '/root/dlauth_debug_user'
 
 
 class DataLabAuthenticator(Authenticator):
