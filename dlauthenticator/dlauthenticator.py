@@ -1,7 +1,16 @@
+#!/bin/env python3
+#
+# DLAUTHENTICATOR -- JupyterHub authenticator module for Data Lab logins.
+
+
+__version__ = '0.2.0'
+__author__ = 'Mike Fitzpatrick <mjfitzpatrick@gmail.com>'
+
 
 import os
 import sys
 import socket
+import argparse
 
 from traitlets import List
 from jupyterhub.auth import Authenticator
@@ -13,13 +22,14 @@ from dl import authClient
 #  for dev/test systems to override the default.
 THIS_HOST = socket.gethostname()
 if THIS_HOST[:5] == 'dldev':
-    DEF_SERVICE_ROOT = "http://dldev.datalab.noao.edu"
+    DEF_SERVICE_ROOT = "https://dldev.datalab.noao.edu"
 elif THIS_HOST[:6] == 'dltest':
-    DEF_SERVICE_ROOT = "http://dltest.datalab.noao.edu"
+    DEF_SERVICE_ROOT = "https://dltest.datalab.noao.edu"
 else:
     DEF_SERVICE_ROOT = "https://datalab.noao.edu"
 
 DEF_SERVICE_URL = DEF_SERVICE_ROOT + "/auth"
+
 
 # Make the runtime path to the debug user file accessible only to somebody
 # with admin privs on the machine running the authenticator.
@@ -29,6 +39,16 @@ DEBUG_USER_PATH = '/root/dlauth_debug_user'
 class DataLabAuthenticator(Authenticator):
     '''Data Lab Jupyter login authenticator.
     '''
+    def __init__(self):
+        self._debug_user_path = DEBUG_USER_PATH
+
+    @property
+    def debug_user_path(self):
+        '''A read-only property to hold the debug user path for testing.
+        '''
+        return self._debug_user_path
+
+
     # Set the default user-exclusion list.  Other users can be named in 
     # the jupyterhub_config.py file.
     excluded_users = List(
@@ -76,16 +96,42 @@ class DataLabAuthenticator(Authenticator):
         return data['username']
 
 
+def parser_arguments():
+    '''Create the argument parser.
+    '''
+    parser = argparse.ArgumentParser(
+             description="JupyterHub login authenticator for Data Lab")
+
+    # Optional args
+    group = parser.add_argument_group()
+    group.add_argument("-u", "--user", action="store",
+            default=None, help="Task account username")
+    group.add_argument("-p", "--password", action="store",
+            default=None, help="Test account password")
+
+    return parser.parse_args()
+
+
+# ===================================================================
+# Program MAIN
+# ===================================================================
+
 if __name__ == "__main__":
     '''Test Application
     '''
     import getpass
 
-    username = input("Username: ")
-    passwd = getpass.getpass()
-    data = dict(username=username, password=passwd)
+    # Parse the command-line arguments.
+    args = parser_arguments()
+
+    if args.user is None and args.password is None:
+        data = dict(username=input('Username: '), password=getpass.getpass())
+    else:
+        data = dict(username=args.user, password=args.password)
 
     rs = DataLabAuthenticator().authenticate(None, data)
-
-    print('DLAuth result: ' + str(rs.result()))
+    if rs.result() is None:
+        print(f'Login fails for user: %s' % data['username'])
+    else:
+        print(f'Login succeeds for user: %s' % data['username'])
 
