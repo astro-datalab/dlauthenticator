@@ -22,11 +22,11 @@ from dl import authClient
 #  for dev/test systems to override the default.
 THIS_HOST = socket.gethostname()
 if THIS_HOST[:5] == 'dldev':
-    DEF_SERVICE_ROOT = "https://dldev.datalab.noao.edu"
+    DEF_SERVICE_ROOT = "https://dldev.datalab.noirlab.edu"
 elif THIS_HOST[:6] == 'dltest':
-    DEF_SERVICE_ROOT = "https://dltest.datalab.noao.edu"
+    DEF_SERVICE_ROOT = "https://dltest.datalab.noirlab.edu"
 else:
-    DEF_SERVICE_ROOT = "https://datalab.noao.edu"
+    DEF_SERVICE_ROOT = "https://datalab.noirlab.edu"
 
 DEF_SERVICE_URL = DEF_SERVICE_ROOT + "/auth"
 
