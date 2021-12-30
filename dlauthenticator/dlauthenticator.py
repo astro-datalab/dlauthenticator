@@ -3,7 +3,7 @@
 # DLAUTHENTICATOR -- JupyterHub authenticator module for Data Lab logins.
 
 
-__version__ = '0.2.0'
+__version__ = '0.3.0'
 __author__ = 'Mike Fitzpatrick <mjfitzpatrick@gmail.com>'
 
 
