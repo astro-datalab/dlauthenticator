@@ -3,7 +3,7 @@
 # DLAUTHENTICATOR -- JupyterHub authenticator module for Data Lab logins.
 
 
-__version__ = '0.3.0'
+__version__ = '0.3.1'
 __author__ = 'Mike Fitzpatrick <mjfitzpatrick@gmail.com>'
 
 
@@ -39,7 +39,7 @@ DEBUG_USER_PATH = '/root/dlauth_debug_user'
 class DataLabAuthenticator(Authenticator):
     '''Data Lab Jupyter login authenticator.
     '''
-    def __init__(self):
+    def __init__(self, parent=None, db=None):
         self._debug_user_path = DEBUG_USER_PATH
 
     @property

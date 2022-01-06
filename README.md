@@ -28,7 +28,7 @@ The only configuration option at present is a List of usernames that are not
 permitted to login to the notebook server.  Typically this is done for admin
 accounts (e.g. root) or to exclude non-DataLab user accounts on the machine
 that would otherwise be able to login through the PAM authenticator.  For
-example, the following can be added to the `jupyterhin_config.py` file:
+example, the following can be added to the `jupyterhub_config.py` file:
 
 ```
 c.DataLabAuthenticator.excluded_users = ['root','datalab']
