@@ -149,7 +149,7 @@ class DataLabAuthenticator(Authenticator):
 
     def is_valid_token(self, token=""):
         """
-        This is where we should call to auth manager to validate the token
+        Validate the provided token with our authClient and return status
         """
         if (token is not None and token != "" and self.is_auth_token(token)):
             return authClient.isValidToken(token)
@@ -159,8 +159,17 @@ class DataLabAuthenticator(Authenticator):
     def authenticate(self, handler, data):
         cookie_header = handler.request.headers.get("Cookie", "")
         dl_token = get_cookie_from_str("X-DL-AuthToken", cookie_header)
+
+        # if we do not have the token then we can just route to login
+        if dl_token is None:
+            handler.redirect(self.invalid_token_url)
+            return None
+
+        # try to parse the token here so we can use it below
         token_data = self.parse_token(dl_token)
-        username = token_data.get('username')
+        username = token_data.get('username', '')
+
+        # handle each case .. authenticated or not
         if not self.is_valid_token(dl_token):
             # if the user doesn't have a valid token first see if we have any debug
             # configurations for the user otherwise send them to the login page
