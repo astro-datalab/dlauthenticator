@@ -14,7 +14,9 @@ import argparse
 
 from traitlets import List
 from jupyterhub.auth import Authenticator
+from jupyterhub.handlers.base import BaseHandler
 from tornado import gen
+from http.cookies import SimpleCookie
 from dl import authClient
 
 
@@ -35,12 +37,90 @@ DEF_SERVICE_URL = DEF_SERVICE_ROOT + "/auth"
 # with admin privs on the machine running the authenticator.
 DEBUG_USER_PATH = '/root/dlauth_debug_user'
 
+# configure the auth client
+authClient.set_svc_url(DEF_SERVICE_URL)
+
+
+def get_cookie_from_str(name, cookie_str=""):
+    '''
+    Parse a cookie string a return the value matching the provided
+    cookie name
+    '''
+    cookie = SimpleCookie()
+    cookie.load(cookie_str)
+    if cookie == None:
+        return None
+    cookies = {k: v.value for k, v in cookie.items()}
+    return cookies.get(name, None)
+
+
+class ExternalLogoutHandler(BaseHandler):
+    '''
+    Handler to work with custom external authenticator, clear the JHUB session
+    then route the user to the main Data Lab logout page (configured in
+    post_logout_url). This is useful if our login service can't clear the
+    session
+    '''
+    def get(self):
+        self.clear_login_cookie()
+        self.redirect(self.authenticator.post_logout_url)
+
 
 class DataLabAuthenticator(Authenticator):
     '''Data Lab Jupyter login authenticator.
     '''
     def __init__(self, parent=None, db=None):
         self._debug_user_path = DEBUG_USER_PATH
+
+    def is_auth_token(self, token):
+        """Check if passed in string is an auth token
+            Usage:
+                is_auth_token(token)
+
+        Parameters
+        ----------
+        token : str
+            A string auth token
+            E.g.
+            "testuser.3666.3666.$1$PKCFmMzy$OPpZg/ThBmZe/V8LVPvpi/%"
+
+        Returns
+        -------
+        return: boolean
+             True if string is a auth token
+        """
+
+        """
+        E.g. token "testuser.3666.3666.$1$PKCFmMzy$OPpZg/ThBmZe/V8LVPvpi/%"
+        Regex deconstruction and explanation:
+        -------------------------------------
+        1.   ([^\/\s]+)     any string with no "/" or spaces
+        2.   \.             separated by a .
+        3.   \d+            followed by any number of digits
+        4.   \.             separated by a .
+        5.   \d+            followed by any number of digits
+        6.   \.             separated by a .
+        7.a) (\$1\$\S{22,}) A string that starts with $1$ (that's how a md5 hash
+                            starts) and that is followed by any non space
+                            characters of 22 chars or longer
+        7.b) |              or
+        7.c) (\S+_access)   A string that ends in _access. This is a special
+                            case for special tokens such as:
+                              anonymous.0.0.anon_access
+                              dldemo.99999.99999.demo_access
+        """
+
+        return re.match(r'([^\/\s]+)\.\d+\.\d+\.((\$1\$\S{22,})|(\S+_access))', 
+                        token)
+
+    def parse_token(self, token):
+        """
+        Break out the various pieces of the token, auth manager can probably
+        do this but we really only need the username in this context
+        """
+        parts = token.split(".")
+        username = parts[0]
+        return dict(username=username)
 
     @property
     def debug_user_path(self):
@@ -67,33 +147,48 @@ class DataLabAuthenticator(Authenticator):
         with open(DEBUG_USER_PATH,'r') as fd:
             debug_user = [ fd.readline().strip() ]
 
+    def is_valid_token(self, token=""):
+        """
+        This is where we should call to auth manager to validate the token
+        """
+        if (token is not None and token != "" and self.is_auth_token(token)):
+            return authClient.isValidToken(token)
+        return False
+
     @gen.coroutine
     def authenticate(self, handler, data):
-        username = data["username"]
-        password = data["password"]
+        cookie_header = handler.request.headers.get("Cookie", "")
+        dl_token = get_cookie_from_str("X-DL-AuthToken", cookie_header)
+        token_data = self.parse_token(dl_token)
+        username = token_data.get('username')
+        if not self.is_valid_token(dl_token):
+            # if the user doesn't have a valid token first see if we have any debug
+            # configurations for the user otherwise send them to the login page
+            if username in self.debug_user:
+                return username
 
-        # Allow password-less login for specific users. Typically used
-	# for upport purposes only to debug a user's environment.
-        if username in self.debug_user:
+            handler.redirect(self.invalid_token_url)
+            return None
+        else:
+            # if the user has a valid token we verify they aren't excluded otherwise
+            # pass the authenticated username
+            for user in self.excluded_users:
+                if user == username:
+                    self.log.warning("Auth error: %s: Excluded login denied", user)
+                    return None
+
+            # if we reach this point the user is logged in and is permitted to access
             return username
 
-        # Punt on any attempted login to excluded account names.
-        for user in self.excluded_users:
-            if user == username:
-                self.log.warning("Auth error: %s: Excluded login denied", user)
-                return None
+    def logout_url(self, base_url):
+        '''on logout, use our custom logout handler instead of default
+        '''
+        return base_url+"/dl-logout"
 
-        try:
-            authClient.set_svc_url(DEF_SERVICE_URL)
-            token = authClient.login (username, password)
-            if not authClient.isValidToken(token):
-                self.log.warning("Invalid token: %s: %s" % (username,token))
-                return None
-        except Exception as e:
-            self.log.error("Exception Auth error: %s: %s" % (username,str(e)))
-            return None
-
-        return data['username']
+    def get_handlers(self, base_url):
+        '''instruct the application to serve our custom logout handler
+        '''
+        return super().get_handlers(self) + [("/dl-logout", ExternalLogoutHandler)]
 
 
 def parser_arguments():
