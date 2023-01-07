@@ -75,6 +75,30 @@ class DataLabAuthenticator(Authenticator):
     def __init__(self, parent=None, db=None):
         self._debug_user_path = DEBUG_USER_PATH
 
+    @property
+    def debug_user_path(self):
+        '''A read-only property to hold the debug user path for testing.
+        '''
+        return self._debug_user_path
+
+    # Set the default user-exclusion list. Other users can be named in
+    # the jupyterhub_config.py file.
+    excluded_users = List(
+        ['root', 'datalab'],
+        allow_none=True,
+        config=True,
+        help="""
+        List of user names not allowed to access the notebook server.
+        """
+    )
+
+    # Get the debug username, if any. Make it a runtime file to avoid
+    # restarts of the JupyterHub.
+    debug_user = []
+    if os.path.exists(DEBUG_USER_PATH):
+        with open(DEBUG_USER_PATH,'r') as fd:
+            debug_user = [ fd.readline().strip() ]
+
     def is_auth_token(self, token):
         """Check if passed in string is an auth token
             Usage:
@@ -124,31 +148,6 @@ class DataLabAuthenticator(Authenticator):
         parts = token.split(".")
         username = parts[0]
         return dict(username=username)
-
-    @property
-    def debug_user_path(self):
-        '''A read-only property to hold the debug user path for testing.
-        '''
-        return self._debug_user_path
-
-
-    # Set the default user-exclusion list.  Other users can be named in 
-    # the jupyterhub_config.py file.
-    excluded_users = List(
-        ['root', 'datalab'],
-        allow_none=True,
-        config=True,
-        help="""
-        List of user names not allowed to access the notebook server.
-        """
-    )
-
-    # Get the debug username, if any. Make it a runtime file to avoid
-    # restarts of the JupyterHub.
-    debug_user = []
-    if os.path.exists(DEBUG_USER_PATH):
-        with open(DEBUG_USER_PATH,'r') as fd:
-            debug_user = [ fd.readline().strip() ]
 
     def is_valid_token(self, token=""):
         """
