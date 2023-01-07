@@ -69,6 +69,9 @@ class ExternalLogoutHandler(BaseHandler):
 class DataLabAuthenticator(Authenticator):
     '''Data Lab Jupyter login authenticator.
     '''
+    post_logout_url = f"{DEF_SERVICE_ROOT}/account/logout.html"
+    invalid_token_url = f"{DEF_SERVICE_ROOT}/account/login.html?next={DEF_SERVICE_ROOT}/devbooks/"
+
     def __init__(self, parent=None, db=None):
         self._debug_user_path = DEBUG_USER_PATH
 
