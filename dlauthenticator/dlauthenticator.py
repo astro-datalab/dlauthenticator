@@ -11,6 +11,7 @@ import os
 import sys
 import socket
 import argparse
+import re
 
 from traitlets import List
 from jupyterhub.auth import Authenticator
@@ -72,8 +73,9 @@ class DataLabAuthenticator(Authenticator):
     post_logout_url = f"{DEF_SERVICE_ROOT}/account/logout.html"
     invalid_token_url = f"{DEF_SERVICE_ROOT}/account/login.html?next={DEF_SERVICE_ROOT}/devbooks/"
 
-    def __init__(self, parent=None, db=None):
+    def __init__(self, parent=None, db=None, _deprecated_db_session=None):
         self._debug_user_path = DEBUG_USER_PATH
+        self.auto_login = True
 
     @property
     def debug_user_path(self):
@@ -103,14 +105,12 @@ class DataLabAuthenticator(Authenticator):
         """Check if passed in string is an auth token
             Usage:
                 is_auth_token(token)
-
         Parameters
         ----------
         token : str
             A string auth token
             E.g.
             "testuser.3666.3666.$1$PKCFmMzy$OPpZg/ThBmZe/V8LVPvpi/%"
-
         Returns
         -------
         return: boolean
@@ -240,4 +240,3 @@ if __name__ == "__main__":
         print(f'Login fails for user: %s' % data['username'])
     else:
         print(f'Login succeeds for user: %s' % data['username'])
-
