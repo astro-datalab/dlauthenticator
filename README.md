@@ -33,3 +33,15 @@ example, the following can be added to the `jupyterhub_config.py` file:
 ```
 c.DataLabAuthenticator.excluded_users = ['root','datalab']
 ```
+
+To support our custom external authenticator the following configuration settings
+are required and can be configured per environment.
+```
+c.Authenticator.auth_refresh_age = 180
+c.JupyterHub.tornado_settings = {
+    "cookie_options": {
+        "Domain": ".datalab.noirlab.edu",
+        "Expires": +180
+    }
+}
+```
