@@ -19,17 +19,27 @@ from jupyterhub.handlers.base import BaseHandler
 from tornado import gen
 from http.cookies import SimpleCookie
 from dl import authClient, Util
+from unittest.mock import patch
+
 
 
 #  The URL of the AuthManager service to contact.  Allow the service URL
 #  for dev/test systems to override the default.
-THIS_HOST = socket.gethostname()
-if THIS_HOST[:5] == 'dldev':
-    DEF_SERVICE_ROOT = "https://dldev.datalab.noirlab.edu"
-elif THIS_HOST[:6] == 'dltest':
-    DEF_SERVICE_ROOT = "https://dltest.datalab.noirlab.edu"
-else:
-    DEF_SERVICE_ROOT = "https://datalab.noirlab.edu"
+DEF_SERVICE_ROOT = os.environ.get('DEF_SERVICE_ROOT')
+
+if DEF_SERVICE_ROOT is None:
+    THIS_HOST = socket.gethostname()
+    if THIS_HOST[:5] == 'dldev':
+        DEF_SERVICE_ROOT = "https://dldev.datalab.noirlab.edu"
+    elif THIS_HOST[:6] == 'dltest':
+        DEF_SERVICE_ROOT = "https://dltest.datalab.noirlab.edu"
+    else:
+        DEF_SERVICE_ROOT = "https://datalab.noirlab.edu"
+
+DL_LOGIN_NEXT_URL = os.environ.get('DL_LOGIN_NEXT_URL')
+
+if DL_LOGIN_NEXT_URL is None:
+    DL_LOGIN_NEXT_URL = f"{DEF_SERVICE_ROOT}/devbooks/"
 
 DEF_SERVICE_URL = DEF_SERVICE_ROOT + "/auth"
 
@@ -66,22 +76,19 @@ class ExternalLogoutHandler(BaseHandler):
         self.redirect(self.authenticator.post_logout_url)
 
 
-class DataLabAuthenticator(Authenticator):
+class BaseDataLabAuthenticator(Authenticator):
     """
     Data Lab Jupyter login authenticator.
     """
-    post_logout_url = f"{DEF_SERVICE_ROOT}/account/logout.html"
-    invalid_token_url = f"{DEF_SERVICE_ROOT}/account/login.html?next={DEF_SERVICE_ROOT}/devbooks/"
 
     DEBUG_USER_PATH = '/root/dlauth_debug_user'
 
-    def __init__(self, parent=None, db=None):
+    def __init__(self, parent=None, db=None, _deprecated_db_session=None):
         self.debug_user_info = self.get_debug_user_info()
         self.auto_login = True
 
-
     @classmethod
-    def parse_token(cls, dl_token):
+    def parse_auth_token(cls, dl_token):
         return {k: v for k, v in zip(['username', 'uid', 'gid', 'hash'],
                                      Util.split_auth_token(dl_token))}
     @classmethod
@@ -94,7 +101,6 @@ class DataLabAuthenticator(Authenticator):
         restarts of the JupyterHub.
         """
         debug_user_info = {'username': None}
-        print("In get_debug_user_info:", debug_user_info)
         if os.path.exists(cls.DEBUG_USER_PATH):
             with open(cls.DEBUG_USER_PATH, 'r') as fd:
                 debug_user_info['username'] = fd.readline().strip()
@@ -107,7 +113,7 @@ class DataLabAuthenticator(Authenticator):
         return self.DEBUG_USER_PATH
 
 
-    # Set the default user-exclusion list.  Other users can be named in 
+    # Set the default user-exclusion list.  Other users can be named in
     # the jupyterhub_config.py file.
     excluded_users = List(
         ['root', 'datalab'],
@@ -118,18 +124,61 @@ class DataLabAuthenticator(Authenticator):
         """
     )
 
+    @gen.coroutine
+    def authenticate(self, handler, data):
+        username = data["username"]
+        password = data["password"]
+
+        # Allow password-less login for specific users. Typically used
+        # for support purposes only to debug a user's environment.
+        if self.debug_user_info['username'] and self.debug_user_info['username'] == username:
+            self.log.info(f"Using debug user info for user:{username}")
+            return self.post_authenticate(handler, self.debug_user_info, None)
+
+        # Punt on any attempted login to excluded account names.
+        for user in self.excluded_users:
+            if user == username:
+                self.log.warning(f"Auth error: {user}: Excluded login denied")
+                return None
+
+        try:
+            authClient.set_svc_url(DEF_SERVICE_URL)
+            token = authClient.login(username, password)
+            if not authClient.isValidToken(token):
+                self.log.warning(f"Invalid token: {username}: {token}")
+                return None
+
+            # Call a method to perform additional authentication logic.
+            return self.post_authenticate(handler, data, token)
+        except Exception as e:
+            self.log.error(f"Exception Auth error: {username}: {e}")
+            return None
+
+    def post_authenticate(self, handler, data, token):
+        """
+        An additional method that derived classes can override to perform
+        authenticator-specific logic after the initial authentication.
+        """
+        return data['username']
+
+
+class DataLabAuthenticator(BaseDataLabAuthenticator):
+    """
+    Data Lab Jupyter token authenticator.
+    Notice this class doesn't perform a log in proper, that happens on the datalab login
+    form, which sets a cookie with the login token in the browser, is that token the
+    one that is used in the is class to authenticate the user.
+    """
+    post_logout_url = f"{DEF_SERVICE_ROOT}/account/logout.html"
+    invalid_token_url = f"{DEF_SERVICE_ROOT}/account/login.html?next={DL_LOGIN_NEXT_URL}"
 
     @gen.coroutine
     def authenticate(self, handler, data):
-        #username = data["username"]
-        #password = data["password"]
 
         # Note: this authentication assumes actual login,
         # i.e. doing the authClient.login(username, password) API
         # happens somewhere else. That "somewhere else" will set a cookie
         # which is what this authenticate method uses.
-
-        # TODO what if data["username"] is different from token username?
 
         cookie_header = handler.request.headers.get("Cookie", "")
         dl_token = get_cookie_from_str("X-DL-AuthToken", cookie_header)
@@ -140,7 +189,7 @@ class DataLabAuthenticator(Authenticator):
             return None
 
         # try to parse the token here so we can use it below
-        token_data = self.parse_token(dl_token)
+        token_data = self.parse_auth_token(dl_token)
         username = token_data.get('username', '')
 
         # handle each case .. authenticated or not
@@ -149,6 +198,7 @@ class DataLabAuthenticator(Authenticator):
             # configurations for the user otherwise send them to the login page.
             # Allow password-less login for specific users. Typically used
             # for support purposes only to debug a user's environment.
+            self.log.info(f"Invalid token for user:{username}")
             if self.debug_user_info['username'] and self.debug_user_info['username'] == username:
                 self.log.info(f"Using debug user info for user:{username}")
                 return self.post_authenticate(handler, self.debug_user_info, None)
@@ -164,14 +214,19 @@ class DataLabAuthenticator(Authenticator):
                     return None
 
             # if we reach this point the user is logged in and is permitted to access
-            return self.post_authenticate(handler, {'username': username}, None)
+            return self.post_authenticate(handler, {'username': username}, dl_token)
 
-    def post_authenticate(self, handler, data, token):
+    def logout_url(self, base_url):
         """
-        An additional method that derived classes can override to perform
-        authenticator-specific logic after the initial authentication.
+        on logout, use our custom logout handler instead of default
         """
-        return data['username']
+        return base_url+"/dl-logout"
+
+    def get_handlers(self, base_url):
+        """
+        instruct the application to serve our custom logout handler
+        """
+        return super().get_handlers(self) + [("/dl-logout", ExternalLogoutHandler)]
 
 
 #
@@ -253,6 +308,28 @@ class GCDataLabAuthenticator(DataLabAuthenticator):
         }
 
 
+class DevGCDataLabAuthenticator(GCDataLabAuthenticator):
+    """
+    Google Cloud development authenticator class.
+    This class doesn't use cookies but uses the DataLab authClient login interface instead.
+    The cookies "next url" works only for jupyterhub clusters that have a domain name that matches
+    datalab.noirlab.edu, however development environments often has just the ip address.
+    By setting the c.JupyterHub.authenticator_class to DevGCDataLabAuthenticator the log in happens
+    via the jupyterhub default login form.
+    E.g.
+    c.JupyterHub.authenticator_class = DevGCDataLabAuthenticator
+    """
+    def authenticate(self, handler, data):
+        """
+        Note: that we are not decorating this method with @gen.coroutine
+              as we are inheriting the base authenticate which already has it.
+              If we add another @gen.coroutine decorator, the Future object will be
+              wrapped on another future object and so you'll have to call result()
+              twice to get the actual result.
+        """
+        return BaseDataLabAuthenticator.authenticate(self, handler, data)
+
+
 def parser_arguments():
     '''Create the argument parser.
     '''
@@ -277,24 +354,44 @@ if __name__ == "__main__":
     '''Test Application
     '''
     import getpass
+    from unittest.mock import MagicMock, PropertyMock
 
     # Parse the command-line arguments.
     args = parser_arguments()
 
-    if args.user is None and args.password is None:
-        data = dict(username=input('Username: '), password=getpass.getpass())
-    else:
-        data = dict(username=args.user, password=args.password)
+    #if args.user is None and args.password is None:
+    #    data = dict(username=input('Username: '), password=getpass.getpass())
+    #else:
+    #    data = dict(username=args.user, password=args.password)
 
 #    rs = DataLabAuthenticator().authenticate(None, data)
 #    if rs.result() is None:
 #        print(f'Login fails for user: %s' % data['username'])
 #    else:
 #        print(f'Login succeeds for user: %s' % data['username'])
+    # Step 1: Create a mock request
 
-    rs = GCDataLabAuthenticator().authenticate(None, data)
-    print("GCDataLabAuthenticator:", rs.result())
+    #"Cookie": "X-DL-AuthToken = isuarezsola.3195.3195.$1$zihxE5de$CHapp./1cp5zTGdwwMDNi."
+    mock_headers = {
+        "Cookie": "X-DL-AuthToken = testgcuser1.4146.4146.$1$cH8mTs3B$m.WkTNYW2q3PXRCMwuIgB/"
+    }
+    # Starting the patch, and getting a reference to the mock object
+    mock_isValidToken = patch('dl.authClient.isValidToken').start()
+    # Setting the return value for the mock object
+    mock_isValidToken.return_value = True
+
+    mock_request = MagicMock()
+
+    type(mock_request).headers = PropertyMock(return_value=mock_headers)
+
+    # Mocking the handler to have the mocked request as its attribute
+    mock_handler = MagicMock()
+    type(mock_handler).request = PropertyMock(return_value=mock_request)
+
+    data = {'username': 'blah'}
+    rs = GCDataLabAuthenticator().authenticate(mock_handler, {'username': data})
     if rs.result() is None:
         print(f'Login fails for user: %s' % data['username'])
     else:
+        print("GCDataLabAuthenticator:", rs.result())
         print(f'Login succeeds for user: %s' % data['username'])
