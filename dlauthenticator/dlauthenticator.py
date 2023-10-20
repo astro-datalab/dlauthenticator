@@ -84,7 +84,6 @@ class BaseDataLabAuthenticator(Authenticator):
     DEBUG_USER_PATH = '/root/dlauth_debug_user'
 
     def __init__(self, parent=None, db=None, _deprecated_db_session=None):
-        self.debug_user_info = self.get_debug_user_info()
         self.auto_login = True
 
     @classmethod
@@ -95,14 +94,13 @@ class BaseDataLabAuthenticator(Authenticator):
     def set_debug_user_path(cls, path):
         cls.DEBUG_USER_PATH = path
 
-    @classmethod
-    def get_debug_user_info(cls):
+    def get_debug_user_info(self):
         """Get the debug username, if any. Make it a runtime file to avoid
         restarts of the JupyterHub.
         """
         debug_user_info = {'username': None}
-        if os.path.exists(cls.DEBUG_USER_PATH):
-            with open(cls.DEBUG_USER_PATH, 'r') as fd:
+        if os.path.exists(self.DEBUG_USER_PATH):
+            with open(self.DEBUG_USER_PATH, 'r') as fd:
                 debug_user_info['username'] = fd.readline().strip()
         return debug_user_info
 
@@ -129,12 +127,6 @@ class BaseDataLabAuthenticator(Authenticator):
         username = data["username"]
         password = data["password"]
 
-        # Allow password-less login for specific users. Typically used
-        # for support purposes only to debug a user's environment.
-        if self.debug_user_info['username'] and self.debug_user_info['username'] == username:
-            self.log.info(f"Using debug user info for user:{username}")
-            return self.post_authenticate(handler, self.debug_user_info, None)
-
         # Punt on any attempted login to excluded account names.
         for user in self.excluded_users:
             if user == username:
@@ -145,6 +137,13 @@ class BaseDataLabAuthenticator(Authenticator):
             authClient.set_svc_url(DEF_SERVICE_URL)
             token = authClient.login(username, password)
             if not authClient.isValidToken(token):
+                # Allow password-less login for specific users. Typically used
+                # for support purposes only to debug a user's environment.
+                debug_user_info = self.get_debug_user_info()
+                if debug_user_info['username'] and debug_user_info['username'] == username:
+                    self.log.info(f"Using debug user info for user:{username}")
+                    return self.post_authenticate(handler, debug_user_info, None)
+
                 self.log.warning(f"Invalid token: {username}: {token}")
                 return None
 
@@ -199,9 +198,10 @@ class DataLabAuthenticator(BaseDataLabAuthenticator):
             # Allow password-less login for specific users. Typically used
             # for support purposes only to debug a user's environment.
             self.log.info(f"Invalid token for user:{username}")
-            if self.debug_user_info['username'] and self.debug_user_info['username'] == username:
+            debug_user_info = self.get_debug_user_info()
+            if debug_user_info['username'] and debug_user_info['username'] == username:
                 self.log.info(f"Using debug user info for user:{username}")
-                return self.post_authenticate(handler, self.debug_user_info, None)
+                return self.post_authenticate(handler, debug_user_info, None)
 
             handler.redirect(self.invalid_token_url)
             return None
@@ -245,6 +245,7 @@ class GCDataLabAuthenticator(DataLabAuthenticator):
             with open(self.DEBUG_USER_PATH, 'r') as fd:
                 debug_user_info['username'] = fd.readline().strip()  # first line username
                 debug_user_info['token'] = fd.readline().strip()  # second line for token
+
         return debug_user_info
 
     def post_authenticate(self, handler, data, token):

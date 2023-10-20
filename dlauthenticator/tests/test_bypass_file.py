@@ -5,11 +5,12 @@ from unittest.mock import patch, MagicMock, PropertyMock
 
 from .. import dlauthenticator
 
-username = 'anonymous'
+username = 'someuserwithloginproblems'
 password = 'doesnt_matter'
 uid = "666"
 gid = "666"
-token = "$1$some..fake..but..working.token/"
+hash = "$1$some..fake..but..working.token/"
+token = f"{username}.{uid}.{gid}.{hash}"
 
 
 def mock_request_handler(headers):
@@ -20,14 +21,18 @@ def mock_request_handler(headers):
     return handler
 
 
-mock_handler = mock_request_handler({"Cookie": f"X-DL-AuthToken = {username}.{uid}.{gid}.{token}"})
+mock_handler = mock_request_handler({"Cookie": f"X-DL-AuthToken = {username}.{uid}.{gid}.{hash}"})
 
 #TODO GCDataLabAuthenticator and DatalabAuthenticator
 
 
+#[(dlauthenticator.BaseDataLabAuthenticator, None),
 @pytest.mark.parametrize("auth_class,handler",
                          [(dlauthenticator.BaseDataLabAuthenticator, None),
-                          (dlauthenticator.DevGCDataLabAuthenticator, mock_handler)])
+                          (dlauthenticator.DataLabAuthenticator, mock_handler),
+                          (dlauthenticator.GCDataLabAuthenticator, mock_handler),
+                          (dlauthenticator.DevGCDataLabAuthenticator, mock_handler)
+                          ])
 def test_bypass_file(auth_class, handler):
     ''' Test that the debug login bypass allows a valid login
         NOTE:  Requires root permission in order to create the path.
@@ -47,12 +52,14 @@ def test_bypass_file(auth_class, handler):
                 fd.write("\n")
                 fd.write(token)
 
-        res = dlauth.authenticate(handler,
+        fut_res = dlauth.authenticate(handler,
                                   dict(username=username, password=password))
         os.unlink(dbg_path)  # clean up and delete the debug file
-        if handler is None:
-            assert res.result() == username
+        res = fut_res.result()
+        if isinstance(res, str):
+            assert res == username
         else:
-            assert res.result()['name'] == username
+            assert res['name'] == username
     else:
+        os.unlink(dbg_path)  # clean up and delete the debug file
         assert 0
