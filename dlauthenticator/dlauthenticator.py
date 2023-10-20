@@ -83,9 +83,6 @@ class BaseDataLabAuthenticator(Authenticator):
 
     DEBUG_USER_PATH = '/root/dlauth_debug_user'
 
-    def __init__(self, parent=None, db=None, _deprecated_db_session=None):
-        self.auto_login = True
-
     @classmethod
     def parse_auth_token(cls, dl_token):
         return {k: v for k, v in zip(['username', 'uid', 'gid', 'hash'],
@@ -170,6 +167,9 @@ class DataLabAuthenticator(BaseDataLabAuthenticator):
     """
     post_logout_url = f"{DEF_SERVICE_ROOT}/account/logout.html"
     invalid_token_url = f"{DEF_SERVICE_ROOT}/account/login.html?next={DL_LOGIN_NEXT_URL}"
+
+    def __init__(self, parent=None, db=None, _deprecated_db_session=None):
+        self.auto_login = True
 
     @gen.coroutine
     def authenticate(self, handler, data):
@@ -320,6 +320,10 @@ class DevGCDataLabAuthenticator(GCDataLabAuthenticator):
     E.g.
     c.JupyterHub.authenticator_class = DevGCDataLabAuthenticator
     """
+
+    def __init__(self, parent=None, db=None, _deprecated_db_session=None):
+        BaseDataLabAuthenticator.__init__(self, parent=parent, db=db, _deprecated_db_session=_deprecated_db_session)
+
     def authenticate(self, handler, data):
         """
         Note: that we are not decorating this method with @gen.coroutine
@@ -330,6 +334,11 @@ class DevGCDataLabAuthenticator(GCDataLabAuthenticator):
         """
         return BaseDataLabAuthenticator.authenticate(self, handler, data)
 
+    def get_handlers(self, base_url):
+        return BaseDataLabAuthenticator.get_handlers(self, base_url)
+
+    def logout_url(self, base_url):
+        return BaseDataLabAuthenticator.logout_url(self, base_url)
 
 def parser_arguments():
     '''Create the argument parser.
