@@ -23,10 +23,7 @@ def mock_request_handler(headers):
 
 mock_handler = mock_request_handler({"Cookie": f"X-DL-AuthToken = {username}.{uid}.{gid}.{hash}"})
 
-#TODO GCDataLabAuthenticator and DatalabAuthenticator
 
-
-#[(dlauthenticator.BaseDataLabAuthenticator, None),
 @pytest.mark.parametrize("auth_class,handler",
                          [(dlauthenticator.BaseDataLabAuthenticator, None),
                           (dlauthenticator.DataLabAuthenticator, mock_handler),
@@ -34,12 +31,12 @@ mock_handler = mock_request_handler({"Cookie": f"X-DL-AuthToken = {username}.{ui
                           (dlauthenticator.DevGCDataLabAuthenticator, mock_handler)
                           ])
 def test_bypass_file(auth_class, handler):
-    ''' Test that the debug login bypass allows a valid login
+    """ Test that the debug login bypass allows a valid login
         NOTE:  Requires root permission in order to create the path.
 
         SUCCESS: the file does not exist
         FAIL:    the file exists
-    '''
+    """
     dlauth = auth_class()
 
     dlauth.set_debug_user_path(f"{os.getcwd()}/some_debug_file")
@@ -53,7 +50,7 @@ def test_bypass_file(auth_class, handler):
                 fd.write(token)
 
         fut_res = dlauth.authenticate(handler,
-                                  dict(username=username, password=password))
+                                      dict(username=username, password=password))
         os.unlink(dbg_path)  # clean up and delete the debug file
         res = fut_res.result()
         if isinstance(res, str):
