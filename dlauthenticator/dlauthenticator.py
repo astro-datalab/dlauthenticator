@@ -36,10 +36,13 @@ if DEF_SERVICE_ROOT is None:
     else:
         DEF_SERVICE_ROOT = "https://datalab.noirlab.edu"
 
-DL_LOGIN_NEXT_URL = os.environ.get('DL_LOGIN_NEXT_URL')
-
-if DL_LOGIN_NEXT_URL is None:
+# Typically the terraform environment will set the
+# JHUB_DN_NAME env variable
+JHUB_DNS_NAME = os.environ.get('JHUB_DNS_NAME')
+if JHUB_DNS_NAME is None:
     DL_LOGIN_NEXT_URL = f"{DEF_SERVICE_ROOT}/devbooks/"
+else:
+    DL_LOGIN_NEXT_URL = f"https://{JHUB_DNS_NAME}"
 
 DEF_SERVICE_URL = DEF_SERVICE_ROOT + "/auth"
 
