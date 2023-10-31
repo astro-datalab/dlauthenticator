@@ -282,15 +282,8 @@ class GCDataLabAuthenticator(DataLabAuthenticator):
         # print dir(self) or/and dir(spawner) to get attributes on these objects
 
         user_options = spawner.user_options
-        # find the profile the user selected and add info to the log
-        matching_profile = next(
-            (profile for profile in spawner.profile_list if profile['slug'] == user_options['profile']), None)
-        if matching_profile is not None:
-            kubespawner_override = matching_profile.get('kubespawner_override', {})
-            mem_limit = kubespawner_override.get('mem_limit', "N/A")
-            self.log.info(f"user=[{spawner.user.name}] NB=[{user_options['profile']}] mem_limit=[{mem_limit}]")
-        else:
-            self.log.info(f"user=[{spawner.user.name}] NB=[{user_options['profile']}]")
+        selected_profile = user_options.get('profile')
+        self.log.info(f"user=[{spawner.user.name}] NB=[{selected_profile}]")
 
         # Dev note:
         # these get passed to the c.KubeSpawner.args.
