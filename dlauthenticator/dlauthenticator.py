@@ -158,6 +158,7 @@ class BaseDataLabAuthenticator(Authenticator):
         An additional method that derived classes can override to perform
         authenticator-specific logic after the initial authentication.
         """
+        self.log.info(f"Simple login for: {data['username']}")
         return data['username']
 
 
@@ -240,6 +241,14 @@ class GCDataLabAuthenticator(DataLabAuthenticator):
     Google Cloud DataLab authenticator
     """
     DataLabAuthenticator.set_debug_user_path('/local/dlauth_debug_user')
+
+    # Override DataLabAuthenticator constructor and enable auth_state here.
+    # for some reason the auto_login = True in the DataLabAuthenticator constructor
+    # breaks the auth_state being passed around.
+    def __init__(self, parent=None, db=None, _deprecated_db_session=None):
+        DataLabAuthenticator.__init__(self, parent=parent, db=db,
+                                      _deprecated_db_session=_deprecated_db_session)
+        self.enable_auth_state = True
 
     def get_debug_user_info(self):
         debug_user_info = {'username': None,
