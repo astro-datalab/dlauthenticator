@@ -15,5 +15,5 @@ def test_no_bypass_file():
         import pytest
         pytest.skip('Must run test as root user')
     else:
-        dlauth = dlauthenticator.DataLabAuthenticator()
+        dlauth = dlauthenticator.BaseDataLabAuthenticator()
         assert not os.path.exists(dlauth.debug_user_path)
