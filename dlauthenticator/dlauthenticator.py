@@ -165,7 +165,7 @@ class BaseDataLabAuthenticator(Authenticator):
 class DataLabAuthenticator(BaseDataLabAuthenticator):
     """
     Data Lab Jupyter token authenticator.
-    Notice this class doesn't perform a log in proper, that happens on the datalab login
+    Notice this class doesn't perform a log in proper, that happens on the Data Lab login
     form, which sets a cookie with the login token in the browser, is that token the
     one that is used in the is class to authenticate the user.
     """
@@ -314,16 +314,16 @@ class GCDataLabAuthenticator(DataLabAuthenticator):
         }
 
 
-class DevGCDataLabAuthenticator(GCDataLabAuthenticator):
+class GCDataLabAuthenticatorNoRedirect(GCDataLabAuthenticator):
     """
     Google Cloud development authenticator class.
-    This class doesn't use cookies but uses the DataLab authClient login interface instead.
+    This class doesn't use cookies but uses the Data Lab authClient login interface instead.
     The cookies "next url" works only for jupyterhub clusters that have a domain name that matches
     datalab.noirlab.edu, however development environments often has just the ip address.
-    By setting the c.JupyterHub.authenticator_class to DevGCDataLabAuthenticator the log in happens
+    By setting the c.JupyterHub.authenticator_class to GCDataLabAuthenticatorNoRedirect the log in happens
     via the jupyterhub default login form.
     E.g.
-    c.JupyterHub.authenticator_class = DevGCDataLabAuthenticator
+    c.JupyterHub.authenticator_class = GCDataLabAuthenticatorNoRedirect
     """
 
     def __init__(self, parent=None, db=None, _deprecated_db_session=None):

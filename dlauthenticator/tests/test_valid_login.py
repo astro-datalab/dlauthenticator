@@ -103,7 +103,7 @@ class TestValidLogin(unittest.TestCase):
         self.basic_asserts_for_gc_auth(res, username, uid, gid, token)
 
     def test_dev_gc_valid_login(self):
-        dlauth = dlauthenticator.DevGCDataLabAuthenticator()
+        dlauth = dlauthenticator.GCDataLabAuthenticatorNoRedirect()
 
         res = dlauth.authenticate(None,
                                   dict(username=username, password=password)).result()

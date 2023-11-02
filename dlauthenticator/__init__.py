@@ -1,3 +1,3 @@
-from dlauthenticator.dlauthenticator import BaseDataLabAuthenticator, DataLabAuthenticator, GCDataLabAuthenticator, DevGCDataLabAuthenticator
+from dlauthenticator.dlauthenticator import BaseDataLabAuthenticator, DataLabAuthenticator, GCDataLabAuthenticator, GCDataLabAuthenticatorNoRedirect
 
-__all__ = [BaseDataLabAuthenticator, DataLabAuthenticator, GCDataLabAuthenticator, DevGCDataLabAuthenticator]
+__all__ = [BaseDataLabAuthenticator, DataLabAuthenticator, GCDataLabAuthenticator, GCDataLabAuthenticatorNoRedirect]
