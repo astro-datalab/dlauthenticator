@@ -282,9 +282,9 @@ class GCDataLabAuthenticator(DataLabAuthenticator):
     @gen.coroutine
     def pre_spawn_start(self, user, spawner):
         # get_auth_state is a coroutine (async) wait for it with yield
-        # make sure the below is set in the config file
-        # c.Authenticator.enable_auth_state = True
-        # otherwise the below command will return None.
+        # make sure the attribute enable_auth_state = True
+        # is set in the class constructor, otherwise
+        # the below command will return None.
         auth_state = yield spawner.user.get_auth_state()
 
         # Dev note:
