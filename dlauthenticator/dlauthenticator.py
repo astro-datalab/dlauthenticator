@@ -327,7 +327,8 @@ class GCDataLabAuthenticatorNoRedirect(GCDataLabAuthenticator):
     """
 
     def __init__(self, parent=None, db=None, _deprecated_db_session=None):
-        BaseDataLabAuthenticator.__init__(self, parent=parent, db=db, _deprecated_db_session=_deprecated_db_session)
+        super().__init__(parent, db, _deprecated_db_session)
+        self.auto_login = False
 
     def authenticate(self, handler, data):
         """

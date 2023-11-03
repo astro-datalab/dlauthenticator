@@ -37,15 +37,23 @@ def mock_spawner():
 
 # Run the pytest on these two classes
 authenticator_classes = [
-    dlauthenticator.GCDataLabAuthenticator,
-    dlauthenticator.GCDataLabAuthenticatorNoRedirect,
+    (dlauthenticator.GCDataLabAuthenticator, {'enable_auth_state': True,
+                                              'auto_login': True}),
+    (dlauthenticator.GCDataLabAuthenticatorNoRedirect, {'enable_auth_state': True,
+                                                        'auto_login': False}),
 ]
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("authenticator_class", authenticator_classes)
-async def test_pre_spawn_start(authenticator_class, mock_spawner):
+@pytest.mark.parametrize("authenticator_class, expected_attrs", authenticator_classes)
+async def test_pre_spawn_start(authenticator_class, expected_attrs, mock_spawner):
     authenticator = authenticator_class()
+
+    assert hasattr(authenticator, 'enable_auth_state')
+    assert authenticator.enable_auth_state == expected_attrs['enable_auth_state']
+    assert hasattr(authenticator, 'auto_login')
+    assert authenticator.auto_login == expected_attrs['auto_login']
+
 
     with patch.object(authenticator.log, 'info') as mock_log_info:
         await authenticator.pre_spawn_start(mock_spawner.user, mock_spawner)
