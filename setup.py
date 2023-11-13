@@ -9,6 +9,5 @@ setup(
     author_email='mike.fitzpatrick@noirlab.edu',
     license='3 Clause BSD',
     packages=['dlauthenticator'],
-    install_requires=['astro-datalab'],
-    requires=['astro-datalab']
+    install_requires=['astro-datalab']
 )
