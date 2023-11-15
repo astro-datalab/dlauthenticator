@@ -165,7 +165,7 @@ class BaseDataLabAuthenticator(Authenticator):
 class DataLabAuthenticator(BaseDataLabAuthenticator):
     """
     Data Lab Jupyter token authenticator.
-    Notice this class doesn't perform a log in proper, that happens on the datalab login
+    Notice this class doesn't perform a log in proper, that happens on the Data Lab login
     form, which sets a cookie with the login token in the browser, is that token the
     one that is used in the is class to authenticate the user.
     """
@@ -282,9 +282,9 @@ class GCDataLabAuthenticator(DataLabAuthenticator):
     @gen.coroutine
     def pre_spawn_start(self, user, spawner):
         # get_auth_state is a coroutine (async) wait for it with yield
-        # make sure the below is set in the config file
-        # c.Authenticator.enable_auth_state = True
-        # otherwise the below command will return None.
+        # make sure the attribute enable_auth_state = True
+        # is set in the class constructor, otherwise
+        # the below command will return None.
         auth_state = yield spawner.user.get_auth_state()
 
         # Dev note:
@@ -314,20 +314,21 @@ class GCDataLabAuthenticator(DataLabAuthenticator):
         }
 
 
-class DevGCDataLabAuthenticator(GCDataLabAuthenticator):
+class GCDataLabAuthenticatorNoRedirect(GCDataLabAuthenticator):
     """
     Google Cloud development authenticator class.
-    This class doesn't use cookies but uses the DataLab authClient login interface instead.
+    This class doesn't use cookies but uses the Data Lab authClient login interface instead.
     The cookies "next url" works only for jupyterhub clusters that have a domain name that matches
     datalab.noirlab.edu, however development environments often has just the ip address.
-    By setting the c.JupyterHub.authenticator_class to DevGCDataLabAuthenticator the log in happens
+    By setting the c.JupyterHub.authenticator_class to GCDataLabAuthenticatorNoRedirect the log in happens
     via the jupyterhub default login form.
     E.g.
-    c.JupyterHub.authenticator_class = DevGCDataLabAuthenticator
+    c.JupyterHub.authenticator_class = GCDataLabAuthenticatorNoRedirect
     """
 
     def __init__(self, parent=None, db=None, _deprecated_db_session=None):
-        BaseDataLabAuthenticator.__init__(self, parent=parent, db=db, _deprecated_db_session=_deprecated_db_session)
+        super().__init__(parent, db, _deprecated_db_session)
+        self.auto_login = False
 
     def authenticate(self, handler, data):
         """

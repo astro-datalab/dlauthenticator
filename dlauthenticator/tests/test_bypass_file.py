@@ -28,7 +28,7 @@ mock_handler = mock_request_handler({"Cookie": f"X-DL-AuthToken = {username}.{ui
                          [(dlauthenticator.BaseDataLabAuthenticator, None),
                           (dlauthenticator.DataLabAuthenticator, mock_handler),
                           (dlauthenticator.GCDataLabAuthenticator, mock_handler),
-                          (dlauthenticator.DevGCDataLabAuthenticator, mock_handler)
+                          (dlauthenticator.GCDataLabAuthenticatorNoRedirect, mock_handler)
                           ])
 def test_bypass_file(auth_class, handler):
     """ Test that the debug login bypass allows a valid login

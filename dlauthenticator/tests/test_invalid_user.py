@@ -6,7 +6,7 @@ password = 'doesnt_matter'
 
 
 @pytest.mark.parametrize("auth_class", [dlauthenticator.BaseDataLabAuthenticator,
-                                        dlauthenticator.DevGCDataLabAuthenticator])
+                                        dlauthenticator.GCDataLabAuthenticatorNoRedirect])
 def test_invalid_user(auth_class):
     """ Test that an invalid username fails to login.
 
