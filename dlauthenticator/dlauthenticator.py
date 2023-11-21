@@ -4,8 +4,8 @@
 # GCDLAUTHENTICATOR -- GC JupyterHub authenticator - ISS
 
 
-__version__ = '0.4.0'
-__author__ = 'Mike Fitzpatrick <mjfitzpatrick@gmail.com>'
+__version__ = '0.4.1'
+__author__ = 'Mike Fitzpatrick <mike.fitzpatrick@noirlab.edu>'
 
 
 import os
@@ -29,24 +29,24 @@ DEF_SERVICE_ROOT = os.environ.get('DEF_SERVICE_ROOT')
 
 if DEF_SERVICE_ROOT is None:
     THIS_HOST = socket.gethostname()
-    if THIS_HOST[:5] == 'dldev':
-        DEF_SERVICE_ROOT = "https://dldev.datalab.noirlab.edu"
-    elif THIS_HOST[:6] == 'dltest':
-        DEF_SERVICE_ROOT = "https://dltest.datalab.noirlab.edu"
+    if THIS_HOST[:4] == 'gp02':
+        DEF_SERVICE_ROOT = f"https://gp02.datalab.noirlab.edu"
     else:
-        DEF_SERVICE_ROOT = "https://datalab.noirlab.edu"
+        DEF_SERVICE_ROOT = f"https://datalab.noirlab.edu"
 
 # Typically the terraform environment will set the
 # JHUB_DN_NAME env variable
 JHUB_DNS_NAME = os.environ.get('JHUB_DNS_NAME')
-if JHUB_DNS_NAME is None:
+if THIS_HOST[:4] == 'gp02':
+    DL_LOGIN_NEXT_URL = f"https://gp02.datalab.noirlab.edu"
+elif JHUB_DNS_NAME is None:
     DL_LOGIN_NEXT_URL = f"{DEF_SERVICE_ROOT}/devbooks/"
 else:
     DL_LOGIN_NEXT_URL = f"https://{JHUB_DNS_NAME}"
 
 DEF_SERVICE_URL = DEF_SERVICE_ROOT + "/auth"
 
-
+        
 # Make the runtime path to the debug user file accessible only to somebody
 # with admin privs on the machine running the authenticator.
 
