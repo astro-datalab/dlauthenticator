@@ -2,7 +2,7 @@ from setuptools import setup
 
 setup(
     name='dlauthenticator',
-    version='0.4.0',
+    version='0.4.1',
     description='Data Lab Authenticator for JupyterHub',
     url='https://github.com/astro-datalab/dlauthenticator',
     author='Mike Fitzpatrick',
