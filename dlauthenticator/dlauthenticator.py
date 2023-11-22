@@ -38,6 +38,7 @@ if DEF_SERVICE_ROOT is None:
 # JHUB_DN_NAME env variable
 JHUB_DNS_NAME = os.environ.get('JHUB_DNS_NAME')
 if THIS_HOST[:4] == 'gp02':
+    DEF_SERVICE_ROOT = f"https://datalab.noirlab.edu"
     DL_LOGIN_NEXT_URL = f"https://gp02.datalab.noirlab.edu"
 elif JHUB_DNS_NAME is None:
     DL_LOGIN_NEXT_URL = f"{DEF_SERVICE_ROOT}/devbooks/"
@@ -45,6 +46,7 @@ else:
     DL_LOGIN_NEXT_URL = f"https://{JHUB_DNS_NAME}"
 
 DEF_SERVICE_URL = DEF_SERVICE_ROOT + "/auth"
+
 
         
 # Make the runtime path to the debug user file accessible only to somebody
@@ -165,15 +167,19 @@ class BaseDataLabAuthenticator(Authenticator):
 class DataLabAuthenticator(BaseDataLabAuthenticator):
     """
     Data Lab Jupyter token authenticator.
-    Notice this class doesn't perform a log in proper, that happens on the datalab login
-    form, which sets a cookie with the login token in the browser, is that token the
-    one that is used in the is class to authenticate the user.
+    Notice this class doesn't perform a log in proper, that happens on the
+    datalab login form, which sets a cookie with the login token in the
+    browser, is that token the one that is used in the is class to
+    authenticate the user.
     """
     post_logout_url = f"{DEF_SERVICE_ROOT}/account/logout.html"
     invalid_token_url = f"{DEF_SERVICE_ROOT}/account/login.html?next={DL_LOGIN_NEXT_URL}"
 
     def __init__(self, parent=None, db=None, _deprecated_db_session=None):
         self.auto_login = True
+        self.log.info(f"THIS_HOST :{THIS_HOST}")
+        self.log.info(f"DEF_SERVICE_URL :{DEF_SERVICE_URL}")
+        self.log.info(f"DL_LOGIN_NEXT_URL :{DL_LOGIN_NEXT_URL}")
 
     @gen.coroutine
     def authenticate(self, handler, data):
@@ -188,6 +194,8 @@ class DataLabAuthenticator(BaseDataLabAuthenticator):
 
         # if we do not have the token then we can just route to login
         if dl_token is None:
+            self.log.info(f"NULL token :{dl_token}")
+            self.log.info(f"NULL redirect :{self.invalid_token_url}")
             handler.redirect(self.invalid_token_url)
             return None
 
@@ -207,6 +215,8 @@ class DataLabAuthenticator(BaseDataLabAuthenticator):
                 self.log.info(f"Using debug user info for user:{username}")
                 return self.post_authenticate(handler, debug_user_info, None)
 
+            self.log.info(f"Invalid token redirect :{dl_token}")
+            self.log.info(f"Invalid redirect :{self.invalid_token_url}")
             handler.redirect(self.invalid_token_url)
             return None
         else:
